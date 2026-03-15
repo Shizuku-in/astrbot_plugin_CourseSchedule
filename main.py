@@ -14,8 +14,6 @@ from .ics_parser import ICSParser
 from .image_generator import ImageGenerator
 from .schedule_helper import ScheduleHelper
 
-SHANGHAI_TZ = timezone(timedelta(hours=8))
-
 class Main(Star):
     """课程表插件"""
 
@@ -23,13 +21,35 @@ class Main(Star):
         super().__init__(context)
         self.context = context
         self.config = config or {}
+        timezone_offset_hours = self._parse_timezone_offset(self.config.get("timezone_offset_hours", 8))
+        self.local_tz = timezone(timedelta(hours=timezone_offset_hours))
         self.data_manager = DataManager(star_map[self.__module__])
-        self.ics_parser = ICSParser()
+        self.ics_parser = ICSParser(timezone_offset_hours=timezone_offset_hours)
         generated_by_name = self.config.get("generated_by_name", "Emi")
-        self.image_generator = ImageGenerator(generated_by_name=generated_by_name)
+        self.image_generator = ImageGenerator(
+            generated_by_name=generated_by_name,
+            timezone_offset_hours=timezone_offset_hours,
+        )
         self.user_data = self.data_manager.load_user_data()
-        self.schedule_helper = ScheduleHelper(self.data_manager, self.ics_parser, self.image_generator, self.user_data)
+        self.schedule_helper = ScheduleHelper(
+            self.data_manager,
+            self.ics_parser,
+            self.image_generator,
+            self.user_data,
+            timezone_offset_hours=timezone_offset_hours,
+        )
         self.binding_requests: Dict[str, Dict] = {}
+
+    @staticmethod
+    def _parse_timezone_offset(raw_offset) -> int:
+        """解析并校验时区偏移，非法值回退为 UTC+8。"""
+        try:
+            offset = int(raw_offset)
+        except (TypeError, ValueError):
+            return 8
+        if -12 <= offset <= 14:
+            return offset
+        return 8
 
     @filter.command("绑定课表")
     async def bind_schedule(self, event: AstrMessageEvent):
@@ -216,8 +236,7 @@ class Main(Star):
     @filter.command("查看课表")
     async def show_today_schedule(self, event: AstrMessageEvent):
         """查看今天还有什么课"""
-        # 使用上海时区 (UTC+8)
-        now = datetime.now(SHANGHAI_TZ)
+        now = datetime.now(self.local_tz)
         today = now.date()
 
         courses, error_msg = await self.schedule_helper.get_schedule_for_date(event, today, "的今日课程")
@@ -234,8 +253,7 @@ class Main(Star):
     @filter.command("查看明日课表")
     async def show_tomorrow_schedule(self, event: AstrMessageEvent):
         """查看明天还有什么课"""
-        # 使用上海时区 (UTC+8)
-        now = datetime.now(SHANGHAI_TZ)
+        now = datetime.now(self.local_tz)
         tomorrow = now.date() + timedelta(days=1)
 
         courses, error_msg = await self.schedule_helper.get_schedule_for_date(event, tomorrow, "的明日课程")
@@ -251,8 +269,7 @@ class Main(Star):
     @filter.command("群友在上什么课")
     async def show_group_now_schedule(self, event: AstrMessageEvent):
         """查看群友接下来有什么课"""
-        # 使用上海时区 (UTC+8)
-        now = datetime.now(SHANGHAI_TZ)
+        now = datetime.now(self.local_tz)
         today = now.date()
 
         next_courses, error_msg = await self.schedule_helper.get_group_schedule_for_date(event, today, is_today=True)
@@ -267,8 +284,7 @@ class Main(Star):
     @filter.command("群友明天上什么课")
     async def show_group_tomorrow_schedule(self, event: AstrMessageEvent):
         """查看群友明天有什么课"""
-        # 使用上海时区 (UTC+8)
-        now = datetime.now(SHANGHAI_TZ)
+        now = datetime.now(self.local_tz)
         tomorrow = now.date() + timedelta(days=1)  # 明天的日期
 
         next_courses, error_msg = await self.schedule_helper.get_group_schedule_for_date(event, tomorrow, is_today=False)
@@ -288,7 +304,7 @@ class Main(Star):
             yield event.plain_result("本群还没有人绑定课表哦。")
             return
 
-        now = datetime.now(SHANGHAI_TZ)
+        now = datetime.now(self.local_tz)
         today = now.date()
         start_of_week = today - timedelta(days=today.weekday())
         end_of_week = start_of_week + timedelta(days=6)

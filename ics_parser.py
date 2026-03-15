@@ -17,7 +17,8 @@ from astrbot.api import logger
 class ICSParser:
     """ICS 和 WakeUp 数据解析器"""
 
-    def __init__(self):
+    def __init__(self, timezone_offset_hours: int = 8):
+        self.local_tz = timezone(timedelta(hours=timezone_offset_hours))
         self.course_cache: Dict[str, List[Dict]] = {}
 
     def parse_ics_file(self, file_path: str) -> List[Dict]:
@@ -34,8 +35,8 @@ class ICSParser:
             return []
 
         cal = Calendar.from_ical(cal_content)
-        shanghai_tz = timezone(timedelta(hours=8))
-        today = datetime.now(shanghai_tz).date()
+        local_tz = self.local_tz
+        today = datetime.now(local_tz).date()
 
         for component in cal.walk():
             if component.name == "VEVENT":
@@ -52,14 +53,14 @@ class ICSParser:
                     dtend = datetime.combine(dtend, dt_time.min)
 
                 dtstart = (
-                    dtstart.astimezone(shanghai_tz)
+                    dtstart.astimezone(local_tz)
                     if dtstart.tzinfo
-                    else dtstart.replace(tzinfo=shanghai_tz)
+                    else dtstart.replace(tzinfo=local_tz)
                 )
                 dtend = (
-                    dtend.astimezone(shanghai_tz)
+                    dtend.astimezone(local_tz)
                     if dtend.tzinfo
-                    else dtend.replace(tzinfo=shanghai_tz)
+                    else dtend.replace(tzinfo=local_tz)
                 )
 
                 course_duration = dtend - dtstart
@@ -72,7 +73,7 @@ class ICSParser:
                         ):
                             until_dt = datetime.combine(until_dt, dt_time.max)
                         if until_dt.tzinfo is None:
-                            until_dt = until_dt.replace(tzinfo=shanghai_tz)
+                            until_dt = until_dt.replace(tzinfo=local_tz)
                         rrule_str["UNTIL"][0] = until_dt.astimezone(timezone.utc)
 
                     dtstart_utc = dtstart.astimezone(timezone.utc)
@@ -86,7 +87,7 @@ class ICSParser:
                     for occurrence_utc in rrule.between(
                         start_of_today_utc, future_limit_utc, inc=True
                     ):
-                        occurrence_local = occurrence_utc.astimezone(shanghai_tz)
+                        occurrence_local = occurrence_utc.astimezone(local_tz)
                         courses.append(
                             {
                                 "summary": summary,

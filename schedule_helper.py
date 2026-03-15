@@ -6,11 +6,12 @@ from datetime import datetime, timezone, timedelta
 class ScheduleHelper:
     """课表查询辅助类，包含通用的课表获取和验证逻辑"""
     
-    def __init__(self, data_manager, ics_parser, image_generator, user_data):
+    def __init__(self, data_manager, ics_parser, image_generator, user_data, timezone_offset_hours: int = 8):
         self.data_manager = data_manager
         self.ics_parser = ics_parser
         self.image_generator = image_generator
         self.user_data = user_data
+        self.local_tz = timezone(timedelta(hours=timezone_offset_hours))
 
     async def get_schedule_for_date(self, event, target_date, date_description):
         """根据指定日期获取个人课程安排，包含完整的用户验证逻辑"""
@@ -31,11 +32,12 @@ class ScheduleHelper:
         courses = self.ics_parser.parse_ics_file(str(ics_file_path))
 
         target_courses = []
+        now = datetime.now(self.local_tz)
         for course in courses:
             if course["start_time"].date() == target_date:
                 # Only filter by current time for today
-                if target_date == datetime.now(timezone(timedelta(hours=8))).date():
-                    if course["start_time"] > datetime.now(timezone(timedelta(hours=8))):
+                if target_date == now.date():
+                    if course["start_time"] > now:
                         target_courses.append(course)
                 else:
                     # For future dates, include all courses
@@ -79,9 +81,7 @@ class ScheduleHelper:
         if not group_id or group_id not in self.user_data:
             return None, "本群还没有人绑定课表哦。"
 
-        # 使用上海时区 (UTC+8)
-        shanghai_tz = timezone(timedelta(hours=8))
-        now = datetime.now(shanghai_tz)
+        now = datetime.now(self.local_tz)
         next_courses = []
 
         group_users = self.user_data[group_id].get("users", {})
