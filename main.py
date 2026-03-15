@@ -19,12 +19,14 @@ SHANGHAI_TZ = timezone(timedelta(hours=8))
 class Main(Star):
     """课程表插件"""
 
-    def __init__(self, context: Context) -> None:
+    def __init__(self, context: Context, config: Dict | None = None) -> None:
         super().__init__(context)
         self.context = context
+        self.config = config or {}
         self.data_manager = DataManager(star_map[self.__module__])
         self.ics_parser = ICSParser()
-        self.image_generator = ImageGenerator()
+        generated_by_name = self.config.get("generated_by_name", "Emi")
+        self.image_generator = ImageGenerator(generated_by_name=generated_by_name)
         self.user_data = self.data_manager.load_user_data()
         self.schedule_helper = ScheduleHelper(self.data_manager, self.ics_parser, self.image_generator, self.user_data)
         self.binding_requests: Dict[str, Dict] = {}
