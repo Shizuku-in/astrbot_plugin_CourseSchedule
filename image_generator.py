@@ -365,17 +365,23 @@ class ImageGenerator:
                     fill=time_color,
                 )
             else:
-                draw.text(
-                    (text_x + 120, y_offset + 95),
-                    detail_text,
-                    font=self.font_sub,
-                    fill=time_color,
+                show_finished_detail = not (
+                    status_text == "已结束"
+                    and date_type == "today"
+                    and today_total_hours is not None
                 )
+                if show_finished_detail:
+                    draw.text(
+                        (text_x + 120, y_offset + 95),
+                        detail_text,
+                        font=self.font_sub,
+                        fill=time_color,
+                    )
 
             if status_text == "已结束" and date_type == "today" and today_total_hours is not None:
                 draw.text(
                     (text_x + 120, y_offset + 122),
-                    f"共计 {today_total_hours:.1f} 小时",
+                    f"（共计 {today_total_hours:.1f} 小时）",
                     font=self.font_sub,
                     fill=time_color,
                 )

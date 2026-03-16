@@ -233,7 +233,7 @@ class Main(Star):
         del self.binding_requests[request_key]
         yield event.plain_result(f"课表绑定成功！群号：{group_id}")
 
-    @filter.command("查看课表")
+    @filter.command("我的课表")
     async def show_today_schedule(self, event: AstrMessageEvent):
         """查看今天还有什么课"""
         now = datetime.now(self.local_tz)
@@ -250,7 +250,7 @@ class Main(Star):
         )
         yield event.image_result(image_path)
 
-    @filter.command("查看明日课表")
+    @filter.command("我的明日课表")
     async def show_tomorrow_schedule(self, event: AstrMessageEvent):
         """查看明天还有什么课"""
         now = datetime.now(self.local_tz)
@@ -266,7 +266,7 @@ class Main(Star):
         )
         yield event.image_result(image_path)
 
-    @filter.command("群友在上什么课")
+    @filter.command("课表")
     async def show_group_now_schedule(self, event: AstrMessageEvent):
         """查看群友接下来有什么课"""
         now = datetime.now(self.local_tz)
@@ -281,7 +281,7 @@ class Main(Star):
         image_bytes = await self.image_generator.generate_schedule_image(next_courses, date_type="today")
         yield event.image_result(image_bytes)
 
-    @filter.command("群友明天上什么课")
+    @filter.command("明天课表")
     async def show_group_tomorrow_schedule(self, event: AstrMessageEvent):
         """查看群友明天有什么课"""
         now = datetime.now(self.local_tz)
