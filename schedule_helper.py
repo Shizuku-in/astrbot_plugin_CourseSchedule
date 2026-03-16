@@ -152,6 +152,19 @@ class ScheduleHelper:
             else:
                 # 用户当天没课
                 summary = "今日无课" if is_today else "明日无课"
+                today_total_hours = None
+                if is_today and target_date_courses:
+                    # 当天有课但都已结束，计算已完成总课时用于展示
+                    finished_seconds = 0.0
+                    for c in target_date_courses:
+                        start_time = c.get("start_time")
+                        end_time = c.get("end_time")
+                        if start_time and end_time and end_time <= now:
+                            finished_seconds += (end_time - start_time).total_seconds()
+                    if finished_seconds > 0:
+                        summary = "今日课程已结束"
+                        today_total_hours = round(finished_seconds / 3600, 1)
+
                 user_course_copy = {
                     "summary": summary,
                     "description": "",
@@ -160,6 +173,7 @@ class ScheduleHelper:
                     "end_time": None,
                     "user_id": user_id,
                     "nickname": nickname,
+                    "today_total_hours": today_total_hours,
                 }
             next_courses.append(user_course_copy)
 

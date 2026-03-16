@@ -230,7 +230,12 @@ class ImageGenerator:
             date_type: 日期类型，"today", "tomorrow", 或自定义日期类型如"本周三"等
         """
         footer_height = 80
-        height = c.GS_PADDING * 2 + 120 + len(courses) * c.GS_ROW_HEIGHT + footer_height
+        row_extra_heights = [
+            30 if date_type == "today" and course.get("today_total_hours") is not None else 0
+            for course in courses
+        ]
+        total_rows_height = sum(c.GS_ROW_HEIGHT + extra for extra in row_extra_heights)
+        height = c.GS_PADDING * 2 + 120 + total_rows_height + footer_height
         image = Image.new("RGB", (c.GS_WIDTH, height), c.GS_BG_COLOR)
         draw = ImageDraw.Draw(image)
 
@@ -275,6 +280,8 @@ class ImageGenerator:
             summary = course.get("summary", "无课程信息")
             start_time: datetime = course.get("start_time")
             end_time: datetime = course.get("end_time")
+            today_total_hours = course.get("today_total_hours")
+            row_height = c.GS_ROW_HEIGHT + row_extra_heights[i]
 
             avatar_data = avatar_datas[i]
             if avatar_data:
@@ -290,7 +297,7 @@ class ImageGenerator:
                         avatar,
                         (
                             c.GS_PADDING,
-                            y_offset + (c.GS_ROW_HEIGHT - c.GS_AVATAR_SIZE) // 2,
+                            y_offset + (row_height - c.GS_AVATAR_SIZE) // 2,
                         ),
                         mask,
                     )
@@ -300,7 +307,7 @@ class ImageGenerator:
                 logger.debug(f"No avatar data available for user {user_id}, skipping avatar display")
 
             arrow_x = c.GS_PADDING + c.GS_AVATAR_SIZE + 20
-            arrow_y = y_offset + c.GS_ROW_HEIGHT // 2
+            arrow_y = y_offset + row_height // 2
             arrow_points = [
                 (arrow_x, arrow_y - 20),
                 (arrow_x + 30, arrow_y),
@@ -308,8 +315,11 @@ class ImageGenerator:
             ]
             draw.polygon(arrow_points, fill="#BDBDBD")
 
-            # 使用重构后的时间计算方法
-            status_text, detail_text = self._calculate_time_delta(start_time, end_time, now, date_type)
+            if not start_time and not end_time and summary in ("今日无课", "明日无课"):
+                status_text, detail_text = "无课程", summary
+            else:
+                # 使用重构后的时间计算方法
+                status_text, detail_text = self._calculate_time_delta(start_time, end_time, now, date_type)
 
             text_x = arrow_x + 50
             nickname = self._sanitize_for_pil(nickname, self.font_main)
@@ -325,7 +335,7 @@ class ImageGenerator:
             )
             summary_color = c.GS_FONT_COLOR
             time_color = c.GS_SUBTITLE_COLOR
-            if status_text in ("进行中", "下一节"):
+            if status_text in ("进行中", "下一节", "已结束"):
                 summary_color = status_bg
                 time_color = status_bg
             draw.rectangle(
@@ -362,7 +372,15 @@ class ImageGenerator:
                     fill=time_color,
                 )
 
-            y_offset += c.GS_ROW_HEIGHT
+            if status_text == "已结束" and date_type == "today" and today_total_hours is not None:
+                draw.text(
+                    (text_x + 120, y_offset + 122),
+                    f"共计 {today_total_hours:.1f} 小时",
+                    font=self.font_sub,
+                    fill=time_color,
+                )
+
+            y_offset += row_height
 
         footer_text = f"Time: {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}"
         draw.text(
