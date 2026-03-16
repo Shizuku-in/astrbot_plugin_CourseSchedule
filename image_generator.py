@@ -380,8 +380,8 @@ class ImageGenerator:
 
             if status_text == "已结束" and date_type == "today" and today_total_hours is not None:
                 draw.text(
-                    (text_x + 120, y_offset + 122),
-                    f"（共计 {today_total_hours:.1f} 小时）",
+                    (text_x + 120, y_offset + 95),
+                    f"(共计 {today_total_hours:.1f} 小时)",
                     font=self.font_sub,
                     fill=time_color,
                 )
